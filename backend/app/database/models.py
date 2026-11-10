@@ -1,0 +1,62 @@
+"""Portable SQLAlchemy metadata models for collections and documents."""
+
+from datetime import datetime, timezone
+from uuid import uuid4
+
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from backend.app.database.session import Base
+
+
+def utc_now() -> datetime:
+    """Timezone-aware UTC timestamp."""
+
+    return datetime.now(timezone.utc)
+
+
+class Collection(Base):
+    """A named group of source documents."""
+
+    __tablename__ = "collections"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    name: Mapped[str] = mapped_column(String(200), unique=True, index=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    documents: Mapped[list["Document"]] = relationship(back_populates="collection", cascade="all, delete-orphan")
+
+
+class Document(Base):
+    """Uploaded document metadata and processing state."""
+
+    __tablename__ = "documents"
+    __table_args__ = (UniqueConstraint("collection_id", "sha256", name="uq_document_collection_hash"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    collection_id: Mapped[str] = mapped_column(ForeignKey("collections.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    sha256: Mapped[str] = mapped_column(String(64), index=True)
+    file_path: Mapped[str] = mapped_column(Text)
+    file_size: Mapped[int] = mapped_column(Integer)
+    page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    title: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    author: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    subject: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    created_on: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    status: Mapped[str] = mapped_column(String(30), default="uploaded", index=True)
+    chunk_count: Mapped[int] = mapped_column(Integer, default=0)
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    collection: Mapped[Collection] = relationship(back_populates="documents")
+
+
+class QueryHistory(Base):
+    """Research question and outcome metadata for recent activity."""
+
+    __tablename__ = "query_history"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    collection_id: Mapped[str | None] = mapped_column(ForeignKey("collections.id", ondelete="SET NULL"), nullable=True)
+    question: Mapped[str] = mapped_column(Text)
+    answer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
