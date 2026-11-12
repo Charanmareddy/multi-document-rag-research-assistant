@@ -23,6 +23,16 @@ Qdrant local persistence is the first vector backend. Embedding model identity a
 
 Each milestone should add focused tests before claiming the capability is working. The acceptance goal of 50+ PDFs requires a representative end-to-end benchmark including extraction, indexing, retrieval, and query latency; upload success alone is insufficient.
 
+## Implemented scope as of 2026-11-12
+
+- Milestones 1–2: service foundation, collection/document APIs, PDF and ZIP uploads, metadata, duplicate detection, and guarded deletion.
+- Milestone 3: page-aware extraction, document excerpt/section/retrieval chunk records, provider adapters, background batch jobs, and incremental Qdrant upserts.
+- Milestone 4: lexical BM25 search, dense Qdrant search, document excerpt routing, metadata filters, and RRF fusion exposed as `/api/v1/research/search`.
+- Milestone 5: optional Cohere/local cross-encoder reranking with a graceful initial-rank fallback.
+- Milestone 6: provider-neutral Gemini/OpenAI structured synthesis, prompt-injection resistant evidence instructions, page citations validated against retrieved sources, cross-document agreement/contradiction candidates, and stage timings.
+
+The automated tests use fake embedding and vector-store adapters for the index pipeline and fake LLM output for citation validation. A real Qdrant client and API credentials were not available during verification, so live external embedding/vector/LLM integration and 50+ PDF performance are not yet validated. The Streamlit UI still does not call the collection, indexing, or research APIs.
+
 ## Initial compatibility notes
 
 The inspected interpreter is Python 3.14.2. This is newer than the broad Python 3.10+ baseline and binary-package support can vary by package. No dependencies were installed during initial inspection. `requirements.txt` uses bounded minimum versions; resolve and install them in a dedicated virtual environment and verify the actual wheel support before relying on Python 3.14. If any dependency lacks support, Python 3.12 is a practical compatibility fallback.

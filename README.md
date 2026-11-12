@@ -6,7 +6,7 @@ An extensible local-first research application for managing PDF collections, ind
 
 ## Current milestone
 
-Milestones 1–2 foundation and collection management: project structure, configuration, database, FastAPI, Streamlit entry point, collection CRUD, PDF/ZIP ingestion, PDF metadata, SHA-256 duplicate detection, document listing/deletion, and upload security checks. Indexing, retrieval, question answering, reporting, analytics, and evaluation remain future milestones.
+Milestones 1–6 and the initial UI integration: project structure, configuration, database, FastAPI, Streamlit collection management, PDF/ZIP ingestion, PDF metadata, SHA-256 duplicate detection, safe deletion, page-preserving extraction, hierarchical chunks, Gemini/OpenAI/local embedding adapters, Qdrant indexing jobs, dense and BM25 search, metadata filters, document routing, hybrid RRF, Cohere/local reranking adapters, grounded LLM synthesis, citation validation, agreement/contradiction candidates, and stage latency reporting. The Streamlit app connects to collection, upload, indexing, and research APIs. Full document comparison, report generation, analytics, evaluation, and the 50+ PDF benchmark remain future work.
 
 ## Requirements
 
@@ -16,7 +16,7 @@ Milestones 1–2 foundation and collection management: project structure, config
 
 ## Run locally
 
-Create an environment with Python 3.10+, install `requirements.txt`, copy `.env.example` to `.env`, then run the API with `uvicorn backend.app.main:app --reload` and the UI with `streamlit run frontend/app.py`. The API docs are at `/docs`; `/api/v1/health` reports service readiness. Run `python -m pytest -q` for the implemented foundation and ingestion tests.
+Create an environment with Python 3.10+, install `requirements.txt`, copy `.env.example` to `.env`, and set `GOOGLE_API_KEY` for the default Gemini embedding provider. Qdrant uses persistent local storage under `data/qdrant`. Then run the API with `uvicorn backend.app.main:app --reload` and the UI with `streamlit run frontend/app.py`. The API docs are at `/docs`; `/api/v1/health` reports service readiness. Run `python -m pytest -q` for the implemented foundation and ingestion tests.
 
 ## Project layout
 

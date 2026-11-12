@@ -4,14 +4,14 @@ from io import BytesIO
 from uuid import uuid4
 import zipfile
 
-import fitz
+import pymupdf
 from fastapi.testclient import TestClient
 
 from backend.app.main import app
 
 
 def make_pdf(text: str = "research evidence") -> bytes:
-    doc = fitz.open()
+    doc = pymupdf.open()
     page = doc.new_page()
     page.insert_text((72, 72), text)
     payload = doc.tobytes()

@@ -20,13 +20,17 @@ class Settings(BaseSettings):
     google_api_key: str | None = None
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
-    embedding_provider: str = "sentence-transformers"
-    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_provider: str = "gemini"
+    embedding_model: str = "gemini-embedding-001"
+    retrieval_top_k: int = 10
+    rerank_candidate_k: int = 20
     qdrant_path: Path = Path("./data/qdrant")
     qdrant_url: str | None = None
     qdrant_api_key: str | None = None
     reranker: str = "none"
     cohere_api_key: str | None = None
+    cohere_rerank_model: str = "rerank-v5.0-fast"
+    local_reranker_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 

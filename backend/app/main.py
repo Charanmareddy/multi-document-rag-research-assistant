@@ -7,6 +7,9 @@ from fastapi import FastAPI
 
 from backend.app.api.routes.health import router as health_router
 from backend.app.api.routes.collections import router as collections_router, documents_router
+from backend.app.api.routes.indexing import router as indexing_router
+from backend.app.api.routes.research import router as research_router
+from backend.app.api.routes.settings import router as settings_router
 from backend.app.core.config import get_settings
 from backend.app.core.logging import configure_logging
 from backend.app.database import models  # noqa: F401 - registers model metadata
@@ -30,3 +33,6 @@ app = FastAPI(title=settings.app_name, version="0.1.0", lifespan=lifespan)
 app.include_router(health_router, prefix="/api/v1")
 app.include_router(collections_router, prefix="/api/v1")
 app.include_router(documents_router, prefix="/api/v1")
+app.include_router(indexing_router, prefix="/api/v1")
+app.include_router(research_router, prefix="/api/v1")
+app.include_router(settings_router, prefix="/api/v1")

@@ -10,7 +10,7 @@ import zipfile
 from pathlib import Path, PurePosixPath
 from uuid import uuid4
 
-import fitz
+import pymupdf
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -18,8 +18,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.app.core.config import get_settings
-from backend.app.database.models import Collection, Document
+from backend.app.database.models import Collection, Document, DocumentChunk, IndexingJob, QueryHistory
 from backend.app.database.session import get_db
+from backend.app.vector_store.qdrant_store import QdrantConfigurationError, delete_document_vectors
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/collections", tags=["collections"])
@@ -80,6 +81,17 @@ def delete_collection(collection_id: str, db: Session = Depends(get_db)) -> None
     item = db.get(Collection, collection_id)
     if item is None:
         raise HTTPException(404, "Collection not found")
+    try:
+        for document in item.documents:
+            if db.query(DocumentChunk.id).filter(DocumentChunk.document_id == document.id).first():
+                delete_document_vectors(document.id)
+    except QdrantConfigurationError as exc:
+        raise HTTPException(503, str(exc)) from exc
+    db.query(DocumentChunk).filter(DocumentChunk.collection_id == collection_id).delete(synchronize_session=False)
+    db.query(IndexingJob).filter(IndexingJob.collection_id == collection_id).delete(synchronize_session=False)
+    db.query(QueryHistory).filter(QueryHistory.collection_id == collection_id).update(
+        {QueryHistory.collection_id: None}, synchronize_session=False
+    )
     for document in item.documents:
         Path(document.file_path).unlink(missing_ok=True)
     db.delete(item)
@@ -134,7 +146,7 @@ async def _save_pdf(upload: UploadFile, collection_id: str, db: Session) -> dict
             Path(temp_path).unlink(missing_ok=True)
             return {"document": _serialize_document(duplicate), "duplicate": True}
         try:
-            pdf = fitz.open(temp_path)
+            pdf = pymupdf.open(temp_path)
             if pdf.is_encrypted:
                 pdf.close()
                 raise HTTPException(422, f"{filename} is password-protected")
@@ -247,6 +259,12 @@ def delete_document(document_id: str, db: Session = Depends(get_db)) -> None:
     item = db.get(Document, document_id)
     if item is None:
         raise HTTPException(404, "Document not found")
+    if db.query(DocumentChunk.id).filter(DocumentChunk.document_id == document_id).first():
+        try:
+            delete_document_vectors(document_id)
+        except QdrantConfigurationError as exc:
+            raise HTTPException(503, str(exc)) from exc
+    db.query(DocumentChunk).filter(DocumentChunk.document_id == document_id).delete(synchronize_session=False)
     Path(item.file_path).unlink(missing_ok=True)
     db.delete(item)
     db.commit()
