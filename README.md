@@ -6,7 +6,7 @@ An extensible local-first research application for managing PDF collections, ind
 
 ## Current milestone
 
-Milestones 1–6 and the initial UI integration: project structure, configuration, database, FastAPI, Streamlit collection management, PDF/ZIP ingestion, PDF metadata, SHA-256 duplicate detection, safe deletion, page-preserving extraction, hierarchical chunks, Gemini/OpenAI/local embedding adapters, Qdrant indexing jobs, dense and BM25 search, metadata filters, document routing, hybrid RRF, Cohere/local reranking adapters, grounded LLM synthesis, citation validation, agreement/contradiction candidates, and stage latency reporting. The Streamlit app connects to collection, upload, indexing, and research APIs. Full document comparison, report generation, analytics, evaluation, and the 50+ PDF benchmark remain future work.
+Milestones 1–11 are implemented in code: collection and document APIs, safe PDF/ZIP uploads, page-preserving extraction, hierarchical chunks, embedding adapters, Qdrant indexing jobs, dense/BM25/hybrid retrieval, reranking, grounded Gemini/OpenAI synthesis, validated citations, comparison, report history and DOCX export, overview analytics, TF-IDF topic candidates, Streamlit workflows, and reproducible evaluation utilities. Live service integration and the realistic 50+ PDF benchmark still need to be run with a configured environment and representative corpus.
 
 ## Requirements
 
@@ -16,7 +16,7 @@ Milestones 1–6 and the initial UI integration: project structure, configuratio
 
 ## Run locally
 
-Create an environment with Python 3.10+, install `requirements.txt`, copy `.env.example` to `.env`, and set `GOOGLE_API_KEY` for the default Gemini embedding provider. Qdrant uses persistent local storage under `data/qdrant`. Then run the API with `uvicorn backend.app.main:app --reload` and the UI with `streamlit run frontend/app.py`. The API docs are at `/docs`; `/api/v1/health` reports service readiness. Run `python -m pytest -q` for the implemented foundation and ingestion tests.
+Create a Python 3.10+ virtual environment, install `requirements.txt`, copy `.env.example` to `.env`, and set `GOOGLE_API_KEY` for the default Gemini embedding and answer providers. Qdrant uses persistent local storage under `data/qdrant`. Start the API with `uvicorn backend.app.main:app --reload` and the UI with `streamlit run frontend/app.py`. Use the app for collection management, PDF/ZIP uploads, indexing, research questions, comparisons, reports, and analytics. API docs are at `/docs`; `/api/v1/health` checks the backend. Run `python -m pytest -q` for the automated suite (currently 20 tests).
 
 ## Project layout
 
@@ -28,8 +28,10 @@ Create an environment with Python 3.10+, install `requirements.txt`, copy `.env.
 
 ## Evaluation
 
-No retrieval or answer quality results are claimed in this foundation milestone. The planned evaluation methodology is described in `docs/architecture.md` and will be implemented with the retrieval milestones.
+No retrieval or answer quality results are claimed without a populated ground-truth dataset. See `evaluation/README.md` for the methodology. Run retrieval evaluation with `python -m evaluation.retrieval_evaluation evaluation/datasets/your_queries.jsonl --collection-id <id> --mode hybrid --top-k 10`; save reviewed outputs under the ignored `evaluation/results/` directory. Human answer-quality review uses the template in `evaluation/datasets/human_review_template.json`.
+
+To measure the end-to-end 50+ PDF target, run `python scripts/benchmark_50plus.py C:\path\to\test-pdfs --queries evaluation\datasets\your_queries.jsonl --mode hybrid --run-llm`. This uploads and indexes at least 50 unique PDFs in a new collection and records actual timings. `--run-llm` requires a working LLM configuration. The script does not infer accuracy scores.
 
 ## Screenshots
 
-Screenshots will be added after the core interface is implemented.
+Screenshots are not included yet.

@@ -40,3 +40,16 @@ def upload_pdfs(collection_id: str, uploads: list[Any]) -> dict:
 def upload_zip(collection_id: str, upload: Any) -> dict:
     return request("POST", "/documents/upload-zip", data={"collection_id": collection_id},
                    files={"file": (upload.name, upload.getvalue(), "application/zip")})
+
+
+def download_report(report_id: str) -> bytes:
+    """Download a generated DOCX as bytes for Streamlit's download button."""
+
+    try:
+        response = httpx.get(f"{API_BASE_URL}/api/v1/reports/{report_id}/download", timeout=60.0)
+        response.raise_for_status()
+        return response.content
+    except httpx.HTTPStatusError as exc:
+        raise RuntimeError(f"Report download returned HTTP {exc.response.status_code}") from exc
+    except httpx.RequestError as exc:
+        raise RuntimeError(f"Cannot reach the API at {API_BASE_URL}.") from exc

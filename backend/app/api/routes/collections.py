@@ -18,7 +18,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend.app.core.config import get_settings
-from backend.app.database.models import Collection, Document, DocumentChunk, IndexingJob, QueryHistory
+from backend.app.database.models import Collection, Document, DocumentChunk, IndexingJob, QueryCitation, QueryHistory, ResearchReport
 from backend.app.database.session import get_db
 from backend.app.vector_store.qdrant_store import QdrantConfigurationError, delete_document_vectors
 
@@ -85,12 +85,18 @@ def delete_collection(collection_id: str, db: Session = Depends(get_db)) -> None
         for document in item.documents:
             if db.query(DocumentChunk.id).filter(DocumentChunk.document_id == document.id).first():
                 delete_document_vectors(document.id)
+            db.query(QueryCitation).filter(QueryCitation.document_id == document.id).update(
+                {QueryCitation.document_id: None}, synchronize_session=False
+            )
     except QdrantConfigurationError as exc:
         raise HTTPException(503, str(exc)) from exc
     db.query(DocumentChunk).filter(DocumentChunk.collection_id == collection_id).delete(synchronize_session=False)
     db.query(IndexingJob).filter(IndexingJob.collection_id == collection_id).delete(synchronize_session=False)
     db.query(QueryHistory).filter(QueryHistory.collection_id == collection_id).update(
         {QueryHistory.collection_id: None}, synchronize_session=False
+    )
+    db.query(ResearchReport).filter(ResearchReport.collection_id == collection_id).update(
+        {ResearchReport.collection_id: None}, synchronize_session=False
     )
     for document in item.documents:
         Path(document.file_path).unlink(missing_ok=True)
@@ -265,6 +271,9 @@ def delete_document(document_id: str, db: Session = Depends(get_db)) -> None:
         except QdrantConfigurationError as exc:
             raise HTTPException(503, str(exc)) from exc
     db.query(DocumentChunk).filter(DocumentChunk.document_id == document_id).delete(synchronize_session=False)
+    db.query(QueryCitation).filter(QueryCitation.document_id == document_id).update(
+        {QueryCitation.document_id: None}, synchronize_session=False
+    )
     Path(item.file_path).unlink(missing_ok=True)
     db.delete(item)
     db.commit()

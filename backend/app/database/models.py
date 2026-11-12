@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.database.session import Base
@@ -62,6 +62,32 @@ class QueryHistory(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
 
 
+class QueryCitation(Base):
+    """Attribution linking a saved research question to a source page."""
+
+    __tablename__ = "query_citations"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    query_id: Mapped[str] = mapped_column(ForeignKey("query_history.id", ondelete="CASCADE"), index=True)
+    document_id: Mapped[str | None] = mapped_column(ForeignKey("documents.id", ondelete="SET NULL"), nullable=True, index=True)
+    source_id: Mapped[str] = mapped_column(String(20))
+    page_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+
+class ResearchReport(Base):
+    """Saved generated report and path to its DOCX export."""
+
+    __tablename__ = "research_reports"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid4()))
+    collection_id: Mapped[str | None] = mapped_column(ForeignKey("collections.id", ondelete="SET NULL"), nullable=True, index=True)
+    title: Mapped[str] = mapped_column(String(300))
+    question: Mapped[str] = mapped_column(Text)
+    content_json: Mapped[str] = mapped_column(Text)
+    docx_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+
+
 class DocumentChunk(Base):
     """Page-attributed chunk source of truth, including hierarchical parent chunks."""
 
@@ -103,5 +129,11 @@ class IndexingJob(Base):
     processed_documents: Mapped[int] = mapped_column(Integer, default=0)
     failed_documents: Mapped[int] = mapped_column(Integer, default=0)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    elapsed_ms: Mapped[float | None] = mapped_column(Float, nullable=True)
+    extraction_ms: Mapped[float] = mapped_column(Float, default=0.0, server_default="0", nullable=False)
+    embedding_ms: Mapped[float] = mapped_column(Float, default=0.0, server_default="0", nullable=False)
+    vector_store_ms: Mapped[float] = mapped_column(Float, default=0.0, server_default="0", nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now)

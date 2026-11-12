@@ -61,6 +61,8 @@ def test_indexing_persists_chunks_and_page_provenance(monkeypatch) -> None:
             assert indexed.page_count == 1
             assert indexed.chunk_count > 0
             assert job.status == "completed"
+            assert job.elapsed_ms is not None
+            assert job.embedding_ms >= 0
             assert len(chunks) == len(upserted)
             retrieval_chunks = [chunk for chunk in chunks if chunk.level == "retrieval"]
             assert retrieval_chunks

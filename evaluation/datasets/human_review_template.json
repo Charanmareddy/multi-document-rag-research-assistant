@@ -1,0 +1,15 @@
+{
+  "query": "",
+  "answer": "",
+  "expected_sources": ["document-id:page-number"],
+  "returned_sources": ["document-id:page-number"],
+  "human_review": {
+    "faithfulness": 1,
+    "answer_relevance": 1,
+    "context_relevance": 1,
+    "agreement_detection": 1,
+    "contradiction_detection": 1,
+    "source_attribution": 1
+  },
+  "review_notes": "Replace template values with a human-reviewed example; scores range from 1 to 5."
+}

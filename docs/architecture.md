@@ -30,8 +30,11 @@ Each milestone should add focused tests before claiming the capability is workin
 - Milestone 4: lexical BM25 search, dense Qdrant search, document excerpt routing, metadata filters, and RRF fusion exposed as `/api/v1/research/search`.
 - Milestone 5: optional Cohere/local cross-encoder reranking with a graceful initial-rank fallback.
 - Milestone 6: provider-neutral Gemini/OpenAI structured synthesis, prompt-injection resistant evidence instructions, page citations validated against retrieved sources, cross-document agreement/contradiction candidates, and stage timings.
+- Milestone 7: document comparison retrieves from each selected document independently and requires evidence from at least two sources.
+- Milestone 8: grounded answer reports, durable report history, and DOCX export.
+- Milestone 9: collection overview, citation-based document relevance, TF-IDF vocabulary candidates, and indexing/sparse-coverage review prompts.
 
-The automated tests use fake embedding and vector-store adapters for the index pipeline and fake LLM output for citation validation. A real Qdrant client and API credentials were not available during verification, so live external embedding/vector/LLM integration and 50+ PDF performance are not yet validated. The Streamlit UI still does not call the collection, indexing, or research APIs.
+The automated tests use fake embedding and vector-store adapters for the index pipeline and fake LLM output for citation validation. A real Qdrant client and API credentials were not available during verification, so live external embedding/vector/LLM integration and 50+ PDF performance are not yet validated. The Streamlit interface connects to collection management, indexing, search, answers, comparisons, reports, analytics, and settings. A 50+ PDF benchmark harness is available in `scripts/benchmark_50plus.py` but must be run on a representative collection.
 
 ## Initial compatibility notes
 

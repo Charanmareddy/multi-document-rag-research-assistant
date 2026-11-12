@@ -55,4 +55,7 @@ def indexing_status(job_id: str, db: Session = Depends(get_db)) -> dict:
     return {"job_id": job.id, "collection_id": job.collection_id, "status": job.status,
             "total_documents": job.total_documents, "processed_documents": job.processed_documents,
             "failed_documents": job.failed_documents, "error": job.error,
+            "started_at": job.started_at, "finished_at": job.finished_at,
+            "elapsed_ms": job.elapsed_ms, "extraction_ms": job.extraction_ms,
+            "embedding_ms": job.embedding_ms, "vector_store_ms": job.vector_store_ms,
             "created_at": job.created_at, "updated_at": job.updated_at}

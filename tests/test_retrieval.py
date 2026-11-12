@@ -10,6 +10,7 @@ from backend.app.main import app
 from backend.app.retrieval.bm25_retriever import bm25_search
 from backend.app.retrieval.hybrid_retriever import reciprocal_rank_fusion
 from backend.app.retrieval.models import Evidence, SearchFilters
+from backend.app.api.routes import research as research_routes
 
 
 def test_bm25_finds_terms_and_respects_document_filter() -> None:
@@ -53,8 +54,8 @@ def test_bm25_finds_terms_and_respects_document_filter() -> None:
             db.commit()
 
 
-def evidence(chunk_id: str, score: float) -> Evidence:
-    return Evidence(chunk_id, "doc", "source.pdf", "collection", "evidence", 2,
+def evidence(chunk_id: str, score: float, document_id: str = "doc") -> Evidence:
+    return Evidence(chunk_id, document_id, "source.pdf", "collection", "evidence", 2,
                     None, None, score)
 
 
@@ -72,3 +73,36 @@ def test_rrf_merges_ranked_lists_without_raw_score_comparison() -> None:
     assert fused[0].dense_score == 0.99
     assert fused[0].bm25_score == 18.0
     assert len(fused) == 3
+
+
+def test_compare_requires_relevant_evidence_from_two_documents(monkeypatch) -> None:
+    with TestClient(app) as client:
+        collection_id = str(uuid4())
+        document_ids = [str(uuid4()), str(uuid4())]
+        with SessionLocal() as db:
+            db.add(Collection(id=collection_id, name=f"compare-{collection_id}"))
+            db.flush()
+            for index, document_id in enumerate(document_ids):
+                db.add(Document(id=document_id, collection_id=collection_id, name=f"source-{index}.pdf",
+                                sha256=str(index) * 64, file_path=f"unused-{index}.pdf", file_size=10))
+            db.commit()
+
+        monkeypatch.setattr(research_routes, "bm25_search",
+                            lambda db, query, filters, top_k: [evidence("chunk-a", 1.0, filters.document_ids[0])]
+                            if filters.document_ids[0] == document_ids[0] else [])
+        payload = {"query": "compare evidence", "collection_id": collection_id,
+                   "document_ids": document_ids, "mode": "bm25"}
+        response = client.post("/api/v1/research/compare", json=payload)
+        assert response.status_code == 422
+
+        monkeypatch.setattr(research_routes, "bm25_search",
+                            lambda db, query, filters, top_k: [evidence(f"chunk-{filters.document_ids[0]}", 1.0, filters.document_ids[0])])
+        monkeypatch.setattr(research_routes, "synthesize_evidence", lambda *args, **kwargs: {"answer": "Compared"})
+        response = client.post("/api/v1/research/compare", json=payload)
+        assert response.status_code == 200
+        assert response.json()["answer"] == "Compared"
+
+        with SessionLocal() as db:
+            db.query(Document).filter(Document.collection_id == collection_id).delete()
+            db.query(Collection).filter(Collection.id == collection_id).delete()
+            db.commit()

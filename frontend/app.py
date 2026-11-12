@@ -1,8 +1,9 @@
 """Streamlit UI for collection management and evidence-grounded research."""
 
 import streamlit as st
+import re
 
-from frontend.services.api import API_BASE_URL, get_collections, request, upload_pdfs, upload_zip
+from frontend.services.api import API_BASE_URL, download_report, get_collections, request, upload_pdfs, upload_zip
 
 st.set_page_config(page_title="Research Assistant", page_icon="📚", layout="wide")
 st.markdown("""
@@ -61,6 +62,19 @@ if page == "Dashboard":
                            "Chunks": d["chunk_count"]} for d in documents[:12]], use_container_width=True, hide_index=True)
         else:
             st.info("Create a collection and upload PDFs to begin.")
+        try:
+            activity = request("GET", "/analytics/overview")
+            left, right = st.columns(2)
+            with left:
+                st.subheader("Recent research queries")
+                for item in activity["recent_queries"]:
+                    st.write(f"• {item['question']}")
+            with right:
+                st.subheader("Recent reports")
+                for item in activity["recent_reports"]:
+                    st.write(f"• {item['title']}")
+        except RuntimeError as exc:
+            st.caption(str(exc))
 
 elif page == "Collections":
     collections = load_collections()
@@ -143,6 +157,16 @@ elif page == "Collections":
                             st.rerun()
                         except RuntimeError as exc:
                             st.error(str(exc))
+                st.divider()
+                confirm_delete = st.checkbox("I understand this deletes the collection and its source PDFs", key=f"confirm-{selected['id']}")
+                if st.button("Delete collection", disabled=not confirm_delete, key=f"delete-collection-{selected['id']}"):
+                    try:
+                        request("DELETE", f"/collections/{selected['id']}")
+                        st.session_state.pop("indexing_job_id", None)
+                        st.success("Collection deleted.")
+                        st.rerun()
+                    except RuntimeError as exc:
+                        st.error(str(exc))
 
 elif page == "Research Assistant":
     collections = load_collections()
@@ -210,6 +234,142 @@ elif page == "Settings":
     except RuntimeError as exc:
         st.error(str(exc))
     st.caption("Provider names and credential presence are shown; secret values are never returned. Change settings in the backend `.env` and restart the API.")
+
+elif page == "Comparison":
+    collections = load_collections()
+    if collections:
+        selected = collection_picker(collections, "compare_collection")
+        docs = selected.get("documents", []) if selected else []
+        if selected:
+            with st.form("compare_docs"):
+                chosen = st.multiselect("Select at least two indexed documents", docs,
+                                        format_func=lambda d: f"{d['name']} ({d['status']})")
+                focus = st.text_input("Comparison focus", value="Compare the main findings, methods, and limitations.")
+                compare_mode = st.selectbox("Retrieval", ["hybrid", "bm25", "dense"], key="compare_mode")
+                compare_button = st.form_submit_button("Compare documents", type="primary")
+            if compare_button:
+                if len(chosen) < 2:
+                    st.warning("Select at least two documents.")
+                else:
+                    try:
+                        result = request("POST", "/research/compare", json={
+                            "query": focus, "collection_id": selected["id"],
+                            "document_ids": [doc["id"] for doc in chosen],
+                            "mode": compare_mode, "rerank": True,
+                        })
+                        st.markdown("### Comparison")
+                        st.write(result["answer"])
+                        left, right = st.columns(2)
+                        with left:
+                            st.markdown("#### Common findings")
+                            for item in result["agreements"]:
+                                st.markdown(f"- {item['finding']} `{' '.join(item['source_ids'])}`")
+                        with right:
+                            st.markdown("#### Potential contradictions")
+                            for item in result["contradictions"]:
+                                st.markdown(f"- {item['finding']} `{' '.join(item['source_ids'])}`")
+                        for citation in result["citations"]:
+                            with st.expander(f"{citation['source_id']} · {citation['document_name']} · page {citation['page_number'] or 'overview'}"):
+                                st.write(citation["excerpt"])
+                    except RuntimeError as exc:
+                        st.error(str(exc))
+    else:
+        st.info("Create a collection and index at least two documents to compare them.")
+
+elif page == "Reports":
+    collections = load_collections()
+    if collections:
+        selected = collection_picker(collections, "report_collection")
+        if selected:
+            st.subheader("Generate a research report")
+            with st.form("generate_report"):
+                title = st.text_input("Report title")
+                question = st.text_area("Research question", placeholder="Synthesize the evidence on…")
+                report_mode = st.selectbox("Retrieval", ["hybrid", "bm25", "dense"], key="report_mode")
+                report_documents = st.multiselect("Limit to documents (optional)", selected.get("documents", []),
+                                                  format_func=lambda d: d["name"])
+                generate = st.form_submit_button("Generate DOCX report", type="primary")
+            if generate:
+                try:
+                    report = request("POST", "/reports/generate", json={
+                        "title": title or None, "query": question, "collection_id": selected["id"],
+                        "document_ids": [doc["id"] for doc in report_documents],
+                        "mode": report_mode, "top_k": 10, "rerank": True,
+                    })
+                    st.success("Report created and saved.")
+                    st.markdown(f"### {report['title']}")
+                    st.write(report["content"]["executive_summary"])
+                    safe_name = re.sub(r"[^A-Za-z0-9 _.-]", "_", report["title"]).strip(" .")[:80] or "Research Report"
+                    st.download_button("Download DOCX", download_report(report["id"]),
+                                       file_name=f"{safe_name}.docx",
+                                       mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+                except RuntimeError as exc:
+                    st.error(str(exc))
+            st.subheader("Report history")
+            try:
+                reports = request("GET", "/reports", params={"collection_id": selected["id"]})
+                if reports:
+                    selected_report = st.selectbox("Saved report", reports,
+                                                   format_func=lambda item: f"{item['title']} · {item['created_at']}")
+                    detail = request("GET", f"/reports/{selected_report['id']}")
+                    st.write(detail["content"]["executive_summary"])
+                    if st.button("Prepare saved report download"):
+                        try:
+                            st.session_state["saved_report_bytes"] = download_report(selected_report["id"])
+                            st.session_state["saved_report_id"] = selected_report["id"]
+                        except RuntimeError as exc:
+                            st.warning(str(exc))
+                    if st.session_state.get("saved_report_bytes") and st.session_state.get("saved_report_id") == selected_report["id"]:
+                        safe_name = re.sub(r"[^A-Za-z0-9 _.-]", "_", selected_report["title"]).strip(" .")[:80] or "Research Report"
+                        st.download_button("Download DOCX", st.session_state["saved_report_bytes"],
+                                           file_name=f"{safe_name}.docx", key=f"saved-download-{selected_report['id']}")
+                else:
+                    st.caption("No saved reports in this collection yet.")
+            except RuntimeError as exc:
+                st.error(str(exc))
+    else:
+        st.info("Create a collection before generating reports.")
+
+elif page == "Analytics":
+    collections = load_collections()
+    if collections:
+        selected = collection_picker(collections, "analytics_collection")
+        if selected:
+            try:
+                collection_id = selected["id"]
+                overview = request("GET", "/analytics/overview", params={"collection_id": collection_id})
+                metric_cols = st.columns(4)
+                metric_cols[0].metric("Documents", overview["documents"])
+                metric_cols[1].metric("Indexed pages", overview["indexed_pages"])
+                metric_cols[2].metric("Chunks", overview["chunks"])
+                metric_cols[3].metric("Research queries", overview["query_count"])
+                topics = request("GET", "/analytics/topics", params={"collection_id": collection_id})
+                relevance = request("GET", "/analytics/document-relevance", params={"collection_id": collection_id})
+                gaps = request("GET", "/analytics/research-gaps", params={"collection_id": collection_id})
+                left, right = st.columns(2)
+                with left:
+                    st.markdown("#### Distinctive terms")
+                    st.caption(topics["note"])
+                    st.dataframe([{"Term": item["term"], "Documents": item["document_count"],
+                                   "Frequency": item["frequency"]} for item in topics["topics"]],
+                                 use_container_width=True, hide_index=True)
+                with right:
+                    st.markdown("#### Document relevance")
+                    st.dataframe([{"Document": item["document_name"], "Cited": item["query_citation_count"],
+                                   "Status": item["status"]} for item in relevance["documents"]],
+                                 use_container_width=True, hide_index=True)
+                st.markdown("#### Review prompts")
+                st.caption(gaps["note"])
+                if gaps["indexing_gaps"]:
+                    st.dataframe(gaps["indexing_gaps"], use_container_width=True, hide_index=True)
+                else:
+                    st.success("All collection documents are indexed.")
+                if gaps["sparse_topic_candidates"]:
+                    st.write("Vocabulary appearing in one document:", ", ".join(item["term"] for item in gaps["sparse_topic_candidates"]))
+            except RuntimeError as exc:
+                st.error(str(exc))
+    else:
+        st.info("Create a collection to see analytics.")
 
 else:
     st.subheader(page)
