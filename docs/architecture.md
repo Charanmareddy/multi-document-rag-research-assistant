@@ -23,7 +23,7 @@ Qdrant local persistence is the first vector backend. Embedding model identity a
 
 Each milestone should add focused tests before claiming the capability is working. The acceptance goal of 50+ PDFs requires a representative end-to-end benchmark including extraction, indexing, retrieval, and query latency; upload success alone is insufficient.
 
-## Implemented scope as of 2026-11-12
+## Implemented scope as of 2026-11-14
 
 - Milestones 1–2: service foundation, collection/document APIs, PDF and ZIP uploads, metadata, duplicate detection, and guarded deletion.
 - Milestone 3: page-aware extraction, document excerpt/section/retrieval chunk records, provider adapters, background batch jobs, and incremental Qdrant upserts.
@@ -33,8 +33,10 @@ Each milestone should add focused tests before claiming the capability is workin
 - Milestone 7: document comparison retrieves from each selected document independently and requires evidence from at least two sources.
 - Milestone 8: grounded answer reports, durable report history, and DOCX export.
 - Milestone 9: collection overview, citation-based document relevance, TF-IDF vocabulary candidates, and indexing/sparse-coverage review prompts.
+- Milestone 10: Streamlit screens for collection management, uploads, indexing, research, comparison, reports, analytics, and provider status.
+- Milestone 11: retrieval/citation metrics, human review rubric, and a real-corpus benchmark harness.
 
-The automated tests use fake embedding and vector-store adapters for the index pipeline and fake LLM output for citation validation. A real Qdrant client and API credentials were not available during verification, so live external embedding/vector/LLM integration and 50+ PDF performance are not yet validated. The Streamlit interface connects to collection management, indexing, search, answers, comparisons, reports, analytics, and settings. A 50+ PDF benchmark harness is available in `scripts/benchmark_50plus.py` but must be run on a representative collection.
+The automated tests use fake embedding and vector-store adapters for the index pipeline and fake LLM output for citation validation. Live external embedding/vector/LLM integration and 50+ PDF performance are not yet validated. A tester setup checklist is in `TESTING_GUIDE.md`; the benchmark harness is in `scripts/benchmark_50plus.py` and must be run on a representative collection.
 
 ## Initial compatibility notes
 

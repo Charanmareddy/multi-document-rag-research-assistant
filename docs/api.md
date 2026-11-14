@@ -18,6 +18,7 @@ Interactive OpenAPI documentation is available at `/docs` while the API is runni
 - `GET /api/v1/indexing/status/{job_id}`
 - `POST /api/v1/research/search` (JSON: query, collection, retrieval mode, filters, top-K)
 - `POST /api/v1/research/query` (same inputs plus optional reranking; returns answer, citations, agreements, contradictions)
+- `POST /api/v1/research/compare` (JSON: collection, at least two document IDs, optional question/mode)
 - `GET /api/v1/settings` (non-secret provider/model and credential-presence status)
 - `POST /api/v1/reports/generate`
 - `GET /api/v1/reports?collection_id=...`
